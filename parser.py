@@ -2,7 +2,50 @@
 import sys
 import pprint
 import re
+import concurrent.futures
 
+curr_syscall = ''
+curr_phandle = 0
+curr_args = []
+
+def flatten(sequence):
+    for iterable in sequence:
+        yield from iterable
+
+def sortLine(line):
+    line = line.split()
+    phandle = int(line[1], base=16)
+    syscall = line[2]
+    args = [int(arg, 16) for arg in line[3:] if int(arg, 16) != 0]
+
+    return syscall, phandle, args
+
+def yieldLine(line):
+    line = line.split()
+    phandle = int(line[1], base=16)
+    syscall = line[2]
+    args = [int(arg, 16) for arg in line[3:] if int(arg, 16) != 0]
+
+    yield phandle, syscall, args
+
+def func1(syscall, phandle, args):
+    global curr_syscall, curr_phandle, curr_args
+    if syscall != curr_syscall and phandle == curr_phandle and set(args).intersection(curr_args):
+        return[syscall]
+    return []
+
+def func2(arguments):
+    return func1(*arguments)
+
+def findDep(curr_sys, curr_phandle, curr_args, content, cores=8):
+    print("A")
+    arguments = (yieldLine(line) for line in content)
+
+    with concurrent.futures.ProcessPoolExecutor(cores) as executor:
+        results = executor.map(func2, arguments)
+        results = flatten(results)
+    
+    return results
 
 def main():
     if len(sys.argv) != 2:
@@ -18,44 +61,26 @@ def main():
     output_file = open(output_name, "w")
     
     content = calls_file.readlines()
-    prev_line = []
+    prev_line = ""
     calls_file.close()
 
     while content:
-        line = content[0].split()
-        curr_phandle = int(line[1], base=16)
-        curr_syscall = line[2]
-        curr_args = [int(arg, 16) for arg in line[3:] if int(arg, 16) != 0]
-        curr_line = [curr_syscall]
-        '''
-        for element in content[1:]:
+        print("B")
+        line = content.pop(0)
+        syscall, phandle, args = sortLine(line)
+        global curr_syscall, curr_phandle, curr_args
+        curr_syscall = syscall
+        curr_phandle = phandle
+        curr_args = args
 
-            element = element.split()
-            syscall = element[2]
-            if syscall == curr_syscall:
-                continue
 
-            phandle = int(element[1], base=16)
-            if phandle != curr_phandle:
-                continue
-
-            args = [int(arg, 16) for arg in element[3:] if int(arg, 16) != 0]
-            if not set(args).intersection(curr_args):
-                continue
-
-            # There is a dependency between these two system calls
-            curr_line.append(syscall)
-        
-        # Check if current line is equal to the previous line
-        if prev_line == curr_line:
+        curr_line = findDep(curr_syscall, curr_phandle, curr_args, content)
+        curr_string = " ".join(curr_line)
+        if curr_string == prev_line:
             continue
-        else:
-            prev_line = curr_line
-            curr_line_str = " ".join(curr_line)
-            print(curr_line_str, file=output_file)
-        '''
-        content.pop(0)
-        pprint.pprint(content)
+        
+        prev_line = curr_string
+        print(curr_string, file=output_file)
 
     output_file.close()
 
