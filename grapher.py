@@ -17,9 +17,8 @@ def usage(exitVal, filename=""):
     -j              Save output as a .json file (default: .txt file)
     -p              Output the parsed dictionary (default: outputs the adjacency list)
     -g              Output a human-readable graph (default: outputs the adjacency list)
-    -adj            Output an undirected, unweighted multiline adjacency list
-    -ud             Output a undirected multiline adjacency list (NOTE: only works with -adj flag)
-    -uw             Output a unweighted miltiline adjacency list (NOTE: only works with -adj flag)
+    -d              Output a directed multiline adjacency list (NOTE: only works with -adj flag)
+    -w              Output a weighted miltiline adjacency list (NOTE: only works with -adj flag)
     -n  NAME        Name to save the output as (default: <current file name>-output.txt)
     -D  DIR         Directory to save the output to (default: output-files/)
                     WARNING: If directory does not exist, it will create a new one with the inputted name
@@ -54,8 +53,8 @@ def main():
     graph_only      = False
     save_as_json    = False
     use_sum         = False
-    undirected      = False
-    unweighted      = False
+    directed      = False
+    weighted      = False
     append          = "-output"
     
     while arguments and arguments[0].startswith('-'):
@@ -77,12 +76,10 @@ def main():
             use_sum = True
         elif argument == '-a':
             append = arguments.pop(0)
-        elif argument == '-adj':
-            adj_list = True
-        elif argument == '-ud':
-            undirected = True
-        elif argument == '-uw':
-            unweighted = True
+        elif argument == '-d':
+            directed = True
+        elif argument == '-w':
+            weighted = True
         elif argument == '-h':
             usage(0)
         else:
@@ -143,7 +140,7 @@ def main():
                 graph[call] = graph.get(call, {})
 
                 for dep in parse[phandle][argument][call].keys():
-                    if unweighted:
+                    if not weighted:
                         graph[call][dep] = 1
                     elif use_sum:
                         graph[call][dep] = graph[call].get(dep, 0) + parse[phandle][argument][call][dep]
@@ -152,7 +149,7 @@ def main():
 
     parse.clear()
     
-    if undirected:
+    if not directed:
         edges = []
         for syscall1 in graph.keys():
             for syscall2 in graph[syscall1].keys():
@@ -162,7 +159,7 @@ def main():
                     continue
 
                 # edge between these two system calls already exists
-                if unweighted:
+                if not weighted:
                     graph[syscall1][syscall2] = 1
                 elif use_sum:
                     graph[syscall1][syscall2] += graph[syscall2][syscall1]
@@ -184,7 +181,7 @@ def main():
         f.write(f'{s1} {len(graph[s1])}')
         for s2 in graph[s1].keys():
             f.write(f'\n{s2}')
-            if not unweighted:
+            if weighted:
                 writeLine = " {'weight':" + str(graph[s1][s2]) + "}"
                 f.write(writeLine)
 
