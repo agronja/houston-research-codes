@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 import os
-import sys
-import pprint
-import re
-import json
+import random
 
 def splitLine(line):
     line = line.split()
@@ -23,9 +20,12 @@ def main():
                 syscalls[call]
             except KeyError:
                 syscalls[call] = 0
-                out.write(f"{call}\n")
         fd.close()
+    calls = list(syscalls.keys())
+    random.shuffle(calls)
+    for call in calls:
+        out.write(f"{call}\n")
     out.close()
-    
+
 if __name__ == '__main__':
     main()

@@ -14,6 +14,10 @@ def usage(exitVal, filename=""):
     exit(exitVal)
 
 def main():
+
+    f = open("unique_syscalls.txt", "r")
+    calls = [line.strip() for line in f.readlines()]
+
     if len(sys.argv) < 2:
         usage(-1)
     filename = sys.argv[1]
@@ -24,8 +28,13 @@ def main():
     
     G = nx.read_multiline_adjlist(adj_file, create_using=nx.DiGraph)
     pr = nx.pagerank(G)
+    fv = []
+    for call in calls:
+        fv.append(pr.get(call, 0))
+    fv.append(nx.average_clustering(G))
+    print(fv)
 
-    pprint.pprint(pr)
+
     
 
 if __name__ == '__main__':
