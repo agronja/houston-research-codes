@@ -13,6 +13,9 @@ def usage(exitVal, filename=""):
     print(f'Usage: {os.path.basename(sys.argv[0])} filename')
     exit(exitVal)
 
+def getAdjList():
+    pass
+
 def main():
 
     f = open("unique_syscalls.txt", "r")
@@ -27,12 +30,24 @@ def main():
         usage(-2, filename)
     
     G = nx.read_multiline_adjlist(adj_file, create_using=nx.DiGraph)
+    
+    # Get pagerank and append to feature vector:
     pr = nx.pagerank(G)
+
     fv = []
     for call in calls:
         fv.append(pr.get(call, 0))
-    fv.append(nx.average_clustering(G))
+
+    # Get average clustering value and append to feature vector:
+    fv.append(nx.average_clustering(G, weight='weight'))
+
+    # Get eigenvector centrality values and append all to feature vector:
+    ec = nx.eigenvector_centrality(G, weight='weight')
+    for call in calls:
+        fv.append(ec.get(call, 0))
     print(fv)
+    print(len(fv))
+    
 
 
     
