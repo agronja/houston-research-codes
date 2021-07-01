@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
+from itertools import compress
 import os
 import sys
 import pprint
 import networkx as nx
+from multiprocessing import Pool
 
-familyData = {'allaple': 1, 'browserfox': 2, 'klez': 3, 'mira': 4, 'multiplug': 5}
+familyData      = {'allaple': 1, 'browserfox': 2, 'klez': 3, 'mira': 4, 'multiplug': 5}
+single_conn     = False
+directed        = False
+weighted        = False
+use_sum         = False
+directory       = "Dataset Sample/"
 
 def usage(exitVal):
     print(f''' Usage: {os.path.basename(sys.argv[0])} [options]
@@ -88,8 +95,14 @@ def getGraphDict(parse, weighted, use_sum, directed):
                 graph[syscall2].pop(syscall1)
     return graph
 
-def getAdjList(filename, single_conn, use_sum, directed, weighted):
-    fd = open(filename, "r")
+def getAdjList(filename):
+    global single_conn
+    global directed
+    global weighted
+    global use_sum
+    global directory
+    fdn = directory + filename
+    fd = open(fdn, "r")
     parse = getParsedDict(fd, single_conn)
     graph = getGraphDict(parse, weighted, use_sum, directed)
     parse.clear()
@@ -130,15 +143,23 @@ def featureExtractor(adjList, calls):
     
     fv.append(ac)
     return fv
+
+def fileProcessor(filename, calls):
+    family = familyClass(filename)
+    adjList = getAdjList(filename)
+    features = featureExtractor(adjList, calls)
+    theTup = (family, features)
+    return theTup
     
 def main():
 
     arguments   = sys.argv[1:]
-    single_conn = False
-    directed    = False
-    weighted    = False
-    use_sum     = False
-    directory   = "Dataset Sample"
+    global single_conn
+    global directed
+    global weighted
+    global use_sum
+    global directory
+    cores       = 12
     families    = []
     fvs         = []
 
@@ -152,19 +173,26 @@ def main():
             directed = True
         elif argument == '-w':
             weighted = True
+        elif argument == '-c':
+            cores = int(arguments.pop(0))
         elif argument == '-h':
             usage(0)
         else:
             usage(-1)
 
     syscalls    = uniqueSyscalls()
+    args = []
 
-    for filename in os.scandir(directory):
-        families.append(familyClass(filename.name))
-        adjList = getAdjList(filename, single_conn, use_sum, directed, weighted)
-        fvs.append(featureExtractor(adjList, syscalls))
-
+    for filename in os.listdir(directory):
+        farg = (filename, syscalls)
+        args.append(farg)
+    p = Pool(cores)
+    theResults = p.starmap(fileProcessor, args)
+    for item in theResults:
+        families.append(item[0])
+        fvs.append(item[1])
     print(fvs)
+    print(families)
 
 if __name__ == '__main__':
     main()
