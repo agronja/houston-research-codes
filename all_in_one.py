@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-from itertools import compress
 import os
 import sys
 import pprint
 import networkx as nx
 from multiprocessing import Pool
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
 
 familyData      = {'allaple': 1, 'browserfox': 2, 'klez': 3, 'mira': 4, 'multiplug': 5}
 single_conn     = False
@@ -20,6 +21,8 @@ def usage(exitVal):
     -s              Use sum of weights as weight for edge (default: max weight per argument)
     -d              Use a directed graph (default: undirected)
     -w              Use a weighted graph (default: unweighted)
+    -c [INT]        Controls how many cores the program uses (default: 15)
+    -r [INT]        Controls the random state of the train/test splitter (default: random)
     
     ''')
 
@@ -124,30 +127,33 @@ def uniqueSyscalls():
     f = open("unique_syscalls.txt", "r")
     return [line.strip() for line in f.readlines()]
 
+syscalls = uniqueSyscalls()
+
 def familyClass(filename):
     fileData = filename.split('_')
     return familyData[fileData[0]]
 
-def featureExtractor(adjList, calls):
+def featureExtractor(adjList):
+    global syscalls
     G = nx.parse_multiline_adjlist(iter(adjList))
     pr = nx.pagerank(G)
     ec = nx.eigenvector_centrality(G, weight='weight')
     ac = nx.average_clustering(G, weight='weight')
 
     fv = []
-    for call in calls: 
+    for call in syscalls: 
         fv.append(pr.get(call, 0))
     
-    for call in calls:
+    for call in syscalls:
         fv.append(ec.get(call, 0))
     
     fv.append(ac)
     return fv
 
-def fileProcessor(filename, calls):
+def fileProcessor(filename):
     family = familyClass(filename)
     adjList = getAdjList(filename)
-    features = featureExtractor(adjList, calls)
+    features = featureExtractor(adjList)
     theTup = (family, features)
     return theTup
     
@@ -160,6 +166,7 @@ def main():
     global use_sum
     global directory
     cores       = 15
+    randNum     = None
     families    = []
     fvs         = []
 
@@ -175,22 +182,27 @@ def main():
             weighted = True
         elif argument == '-c':
             cores = int(arguments.pop(0))
+        elif argument == '-r':
+            randNum = int(arguments.pop(0))
         elif argument == '-h':
             usage(0)
         else:
             usage(-1)
 
-    syscalls    = uniqueSyscalls()
-    args = []
-    print(f"Inside python program, using {cores} cores")
+    # syscalls    = uniqueSyscalls()
+    '''
     for filename in os.listdir(directory):
         farg = (filename, syscalls)
         args.append(farg)
+    '''
     p = Pool(cores)
-    theResults = p.starmap(fileProcessor, args)
+    theResults = p.map(fileProcessor, os.listdir(directory))
     for item in theResults:
         families.append(item[0])
         fvs.append(item[1])
+    
+    fv_train, fv_test, fam_train, fam_test = train_test_split(fvs, families, test_size=0.25, random_state=randNum)
 
+    print(fv_train[34])
 if __name__ == '__main__':
     main()
