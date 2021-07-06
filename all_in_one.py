@@ -159,7 +159,7 @@ def main():
     global weighted
     global use_sum
     global directory
-    cores       = 12
+    cores       = 15
     families    = []
     fvs         = []
 
@@ -182,7 +182,7 @@ def main():
 
     syscalls    = uniqueSyscalls()
     args = []
-
+    print(f"Inside python program, using {cores} cores")
     for filename in os.listdir(directory):
         farg = (filename, syscalls)
         args.append(farg)
@@ -191,8 +191,6 @@ def main():
     for item in theResults:
         families.append(item[0])
         fvs.append(item[1])
-    print(fvs)
-    print(families)
 
 if __name__ == '__main__':
     main()
