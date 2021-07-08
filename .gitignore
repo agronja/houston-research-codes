@@ -3,7 +3,5 @@
 temp.py
 .venv
 Dataset Sample
-input-files
-output-files
-temp-files
+**-files
 !unique_syscalls.txt

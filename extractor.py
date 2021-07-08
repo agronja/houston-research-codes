@@ -2,10 +2,9 @@
 import os
 import sys
 import pprint
+import pickle
 import networkx as nx
 from multiprocessing import Pool
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
 
 familyData      = {'allaple': 1, 'browserfox': 2, 'klez': 3, 'mira': 4, 'multiplug': 5}
 single_conn     = False
@@ -13,6 +12,8 @@ directed        = False
 weighted        = False
 use_sum         = False
 directory       = "Dataset Sample/"
+fileNo = 0
+cores = 15
 
 def usage(exitVal):
     print(f''' Usage: {os.path.basename(sys.argv[0])} [options]
@@ -22,7 +23,6 @@ def usage(exitVal):
     -d              Use a directed graph (default: undirected)
     -w              Use a weighted graph (default: unweighted)
     -c [INT]        Controls how many cores the program uses (default: 15)
-    -r [INT]        Controls the random state of the train/test splitter (default: random)
     
     ''')
 
@@ -34,7 +34,8 @@ def splitLine(line):
 
     return syscall, phandle, args
 
-def getParsedDict(calls_file, single_conn):
+def getParsedDict(calls_file):
+    global single_conn
     parse = {}
 
     line = calls_file.readline()
@@ -64,7 +65,10 @@ def getParsedDict(calls_file, single_conn):
         line = calls_file.readline()
     return parse
 
-def getGraphDict(parse, weighted, use_sum, directed):
+def getGraphDict(parse):
+    global weighted
+    global directed
+    global use_sum
     graph = {}
 
     for phandle in parse.keys():
@@ -99,15 +103,12 @@ def getGraphDict(parse, weighted, use_sum, directed):
     return graph
 
 def getAdjList(filename):
-    global single_conn
-    global directed
     global weighted
-    global use_sum
     global directory
     fdn = directory + filename
     fd = open(fdn, "r")
-    parse = getParsedDict(fd, single_conn)
-    graph = getGraphDict(parse, weighted, use_sum, directed)
+    parse = getParsedDict(fd)
+    graph = getGraphDict(parse)
     parse.clear()
     adjList = []
     for s1 in graph.keys():
@@ -121,6 +122,7 @@ def getAdjList(filename):
                 line = line + " {'weight':" + str(graph[s1][s2]) + "}"
             adjList.append(line)
     graph.clear()
+    fd.close()
     return adjList
 
 def uniqueSyscalls():
@@ -135,7 +137,11 @@ def familyClass(filename):
 
 def featureExtractor(adjList):
     global syscalls
-    G = nx.parse_multiline_adjlist(iter(adjList))
+    global directed
+    graphToUse = None
+    if directed:
+        graphToUse = nx.DiGraph
+    G = nx.parse_multiline_adjlist(iter(adjList), create_using=graphToUse)
     pr = nx.pagerank(G)
     ec = nx.eigenvector_centrality(G, weight='weight')
     ac = nx.average_clustering(G, weight='weight')
@@ -151,10 +157,14 @@ def featureExtractor(adjList):
     return fv
 
 def fileProcessor(filename):
+    global fileNo
+    global cores
+    print(filename, fileNo)
     family = familyClass(filename)
     adjList = getAdjList(filename)
     features = featureExtractor(adjList)
     theTup = (family, features)
+    fileNo += cores
     return theTup
     
 def main():
@@ -165,10 +175,7 @@ def main():
     global weighted
     global use_sum
     global directory
-    cores       = 15
-    randNum     = None
-    families    = []
-    fvs         = []
+    global cores
 
     while arguments and arguments[0].startswith('-'):
         argument = arguments.pop(0)
@@ -182,27 +189,45 @@ def main():
             weighted = True
         elif argument == '-c':
             cores = int(arguments.pop(0))
-        elif argument == '-r':
-            randNum = int(arguments.pop(0))
         elif argument == '-h':
             usage(0)
         else:
             usage(-1)
 
-    # syscalls    = uniqueSyscalls()
-    '''
-    for filename in os.listdir(directory):
-        farg = (filename, syscalls)
-        args.append(farg)
-    '''
     p = Pool(cores)
     theResults = p.map(fileProcessor, os.listdir(directory))
+    
+    singlePrint = "single"
+    typePrint = "averaged"
+    directPrint = "directed"
+    weightPrint = "weighted"
+
+    if not single_conn:
+        singlePrint = "multiple"
+    if use_sum:
+        typePrint = "summed"
+    if not directed:
+        directPrint = "un" + directPrint
+    if not weighted:
+        weightPrint = "un" + weightPrint
+    
+    fp = "pickled-files/" + singlePrint + "-" + typePrint + "-" + directPrint + "-" + weightPrint + ".p"
+
+    print(f"results pickled to {fp}")
+    pickle.dump(theResults, open(fp, "wb"))
+
+    '''
     for item in theResults:
         families.append(item[0])
         fvs.append(item[1])
     
     fv_train, fv_test, fam_train, fam_test = train_test_split(fvs, families, test_size=0.25, random_state=randNum)
 
-    print(fv_train[34])
+    
+    clf = RandomForestClassifier(n_estimators=100, max_depth=3)
+    clf.fit(fv_train, fam_train)
+    print(clf.score(fv_test, fam_test))
+    '''
+
 if __name__ == '__main__':
     main()
