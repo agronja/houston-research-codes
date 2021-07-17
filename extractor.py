@@ -138,7 +138,7 @@ def familyClass(filename):
 def featureExtractor(adjList):
     global syscalls
     global directed
-    graphToUse = None
+    graphToUse = nx.Graph
     if directed:
         graphToUse = nx.DiGraph
     G = nx.parse_multiline_adjlist(iter(adjList), create_using=graphToUse)
@@ -196,14 +196,11 @@ def main():
 
     p = Pool(cores)
     theResults = p.map(fileProcessor, os.listdir(directory))
-    
-    singlePrint = "single"
+
     typePrint = "averaged"
     directPrint = "directed"
     weightPrint = "weighted"
 
-    if not single_conn:
-        singlePrint = "multiple"
     if use_sum:
         typePrint = "summed"
     if not directed:
@@ -211,7 +208,7 @@ def main():
     if not weighted:
         weightPrint = "un" + weightPrint
     
-    fp = "pickled-files/" + singlePrint + "-" + typePrint + "-" + directPrint + "-" + weightPrint + ".p"
+    fp = "pickled-files/" +  typePrint + "-" + directPrint + "-" + weightPrint + ".p"
 
     print(f"results pickled to {fp}")
     pickle.dump(theResults, open(fp, "wb"))
