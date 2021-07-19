@@ -10,7 +10,7 @@ single_conn     = False
 use_sum         = False
 directory       = "Dataset Sample/"
 typePrint       = "maxed"
-cores           = 15
+cores           = 10
 
 def usage(exitVal):
     print(f''' Usage: {os.path.basename(sys.argv[0])} [options]

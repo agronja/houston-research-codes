@@ -11,16 +11,18 @@ from networkx.classes import graph
 
 graphType       = None
 weighted        = None
-directory       = "Dataset Sample/"
-cores           = 15
+callDirectory   = "Dataset Sample/"
+directory       = "pickled-adjlist-maxed-files/"
+cores           = 10
 syscalls        = set()
 
 def usage(exitVal):
     print(f''' Usage: {os.path.basename(sys.argv[0])} [options]
 
-    -d             Use a directed graph (default: undirected)
-    -w             Use a weighted graph (default: unweighted)
+    -d              Use a directed graph (default: undirected)
+    -w              Use a weighted graph (default: unweighted)
     -D [DIRECTORY]  Source of input files (default: "Dataset Sample/")
+    -sD [DIRECTORY] Source of system calls (defualt: "Dataset Sample/")
     -c [INT]        Controls how many cores the program uses (default: 15)
     
     ''')
@@ -30,19 +32,15 @@ def usage(exitVal):
 def splitLine(line):
     return line.split()[2]
 
-def uniqueSyscalls():
-    print("Gathering all unique system calls...")
-    syscalls = set()
-    for filename in os.scandir(directory):
-        syscalls.update([line.decode().strip().split()[2] for line in gzip.open(filename, "r")])
-    return syscalls
+def uniqueSyscalls(filename):
+    return set([line.decode().strip().split()[2] for line in gzip.open(callDirectory + filename, "r")])
 
 def familyClass(filename):
     fileData = filename.split('_')
     return fileData[0]
 
 
-def featureExtractor(adjList, d=False):
+def featureExtractor(adjList):
     global syscalls
     global graphType
     global weighted
@@ -80,6 +78,7 @@ def main():
     global graphType
     global weighted
     global directory
+    global callDirectory
     global cores
     global syscalls
 
@@ -96,14 +95,22 @@ def main():
             wPrint = "weighted"
         elif argument == '-c':
             cores = int(arguments.pop(0))
+        elif argument == '-sD':
+            callDirectory = arguments.pop(0)
         elif argument == '-D':
             directory = arguments.pop(0)
         elif argument == '-h':
             usage(0)
         else:
             usage(-1)
+
+    print("Gathering all unique system calls...")
     
-    syscalls = uniqueSyscalls()
+    syscalls = set()
+    pd = Pool(cores)
+    syscalls.update(pd.map(uniqueSyscalls, os.listdir(callDirectory)))
+
+
     typePrint = getTypePrint()
 
     print("\nCreating feature vectors for files in directory...\n")
@@ -111,10 +118,10 @@ def main():
     for idx, filename in enumerate(os.listdir(directory)):
         d.append((filename, idx))
     p = Pool(cores)
-    theResults = p.map(fileProcessor, d)
+    theResults = p.starmap(fileProcessor, d)
 
     fp = "pickled-features-files/" + typePrint + "-" + dPrint + "-" + wPrint + ".p"
-    print(f"results pickled to {fp}")
+    print(f"\nresults pickled to {fp}\n")
     pickle.dump(theResults, open(fp, "wb"))
 
     

@@ -33,6 +33,7 @@ def forestClass(filename):
     metrics.plot_confusion_matrix(clf, fv_test, fam_test)
     title = filename.split('.')[0].split('-')
     plt.title(", ".join(title).title())
+    plt.xticks(rotation = 45)
     plt.savefig(figSave)
 
     print(metrics.classification_report(fam_test, fam_predict, digits=3))
@@ -40,6 +41,10 @@ def forestClass(filename):
     
 
 def main():
+
+    global directory
+    if sys.argv[1:]:
+        directory = sys.argv[1]
 
     for filename in os.listdir(directory):
         forestClass(filename)
