@@ -5,6 +5,7 @@ import pprint
 import pickle
 from multiprocessing import Pool
 import gzip
+from tqdm import tqdm
 
 single_conn     = False
 use_sum         = False
@@ -144,11 +145,16 @@ def main():
     # syscalls = uniqueSyscalls()
 
     print(f"\nCreating adjacency lists for files in {directory}...\n")
+    p = Pool(cores)
+    for _ in tqdm(p.imap_unordered(getAdjList, os.listdir(directory)), total=len(os.listdir(directory))):
+        pass
+    '''
     d = []
     for idx, filename in enumerate(os.listdir(directory)):
         d.append((filename, idx))
     p = Pool(cores)
     p.starmap(getAdjList, d)
+    '''
 
 if __name__ == '__main__':
     main()

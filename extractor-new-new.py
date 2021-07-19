@@ -6,14 +6,16 @@ import pickle
 import networkx as nx
 from multiprocessing import Pool
 import gzip
+import progressbar
+from tqdm import tqdm
 
 from networkx.classes import graph
 
 graphType       = None
 weighted        = None
-callDirectory   = "Dataset Sample/"
+callDirectory   = "og_dataset_7000/"
 directory       = "pickled-adjlist-maxed-files/"
-cores           = 10
+cores           = 15
 syscalls        = set()
 
 def usage(exitVal):
@@ -33,7 +35,7 @@ def splitLine(line):
     return line.split()[2]
 
 def uniqueSyscalls(filename):
-    return set([line.decode().strip().split()[2] for line in gzip.open(callDirectory + filename, "r")])
+    return [line.decode().strip().split()[2] for line in gzip.open(callDirectory + filename, "r")]
 
 def familyClass(filename):
     fileData = filename.split('_')
@@ -59,8 +61,7 @@ def featureExtractor(adjList):
     fv.append(ac)
     return fv
 
-def fileProcessor(filename, fileNo):
-    print(filename, fileNo)
+def fileProcessor(filename):
     family = familyClass(filename)
     adjList = pickle.load(open(directory + filename, "rb"))
     fv = featureExtractor(adjList)
@@ -104,21 +105,22 @@ def main():
         else:
             usage(-1)
 
-    print("Gathering all unique system calls...")
-    
-    syscalls = set()
-    pd = Pool(cores)
-    syscalls.update(pd.map(uniqueSyscalls, os.listdir(callDirectory)))
+    tPrint = "Going to create a " + dPrint + " " + wPrint + " graph"
+    print(tPrint)
 
+    print("\nGathering all unique system calls...\n")
+    pd = Pool(cores)
+    for x in tqdm(pd.imap_unordered(uniqueSyscalls, os.listdir(callDirectory)), total=len(os.listdir(callDirectory))):
+        syscalls.update(x)
+    print(f"\nNumber of system calls: {len(syscalls)}")
 
     typePrint = getTypePrint()
 
     print("\nCreating feature vectors for files in directory...\n")
-    d = []
-    for idx, filename in enumerate(os.listdir(directory)):
-        d.append((filename, idx))
     p = Pool(cores)
-    theResults = p.starmap(fileProcessor, d)
+    theResults = []
+    for x in tqdm(p.imap_unordered(fileProcessor, os.listdir(directory)), total=len(os.listdir(directory))):
+        theResults.append(x)
 
     fp = "pickled-features-files/" + typePrint + "-" + dPrint + "-" + wPrint + ".p"
     print(f"\nresults pickled to {fp}\n")
