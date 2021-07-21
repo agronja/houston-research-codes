@@ -12,3 +12,4 @@ small_dataset_500
 sys-tmp
 !pickled-adjlist-maxed-files/
 !pickled-adjlist-summed-files/
+!syscalls.p
