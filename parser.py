@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 single_conn     = False
 use_sum         = False
-directory       = "Dataset Sample/"
+directory       = "small_dataset_500/"
 typePrint       = "maxed"
 cores           = 10
 
@@ -22,7 +22,7 @@ def usage(exitVal):
     -w              Use only a weighted graph (default: both)
     -ud             Use only an undirected graph (default: both)
     -uw             Use only an unweighted graph (default: both)
-    -D [DIRECTORY]  Source of input files (default: "Dataset Sample/")
+    -D [DIRECTORY]  Source of input files (default: "small_dataset_500/")
     -c [INT]        Controls how many cores the program uses (default: 15)
     
     ''')

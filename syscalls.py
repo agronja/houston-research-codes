@@ -1,38 +1,22 @@
 #!/usr/bin/env python3
 import os
 import random
+from multiprocessing import Pool
+from tqdm import tqdm
+import gzip
+import pickle
 
-def splitLine(line):
-    line = line.split()
-    syscall = line[2]
-
-    return syscall
+def uniqueSyscalls(filename):
+    return[line.decode().strip().split()[2] for line in gzip.open("og_dataset_7000/" + filename, "r")]
 
 def main():
-    directory = 'Dataset Sample/'
+    directory = 'og_dataset_7000/'
     syscalls = set()
-    out = open('unique_syscalls.txt', 'w')
-    for filename in os.scandir(directory):
-        syscalls.update([splitLine(line) for line in open(filename, "r")])
-        print(len(syscalls))
-    print(syscalls)
-    out.close()
-    '''
-    for filename in os.scandir(directory):
-        fd = open(filename, "r")
-        for line in fd:
-            call = splitLine(line)
-            try:
-                syscalls[call]
-            except KeyError:
-                syscalls[call] = 0
-        fd.close()
-    calls = list(syscalls.keys())
-    random.shuffle(calls)
-    for call in calls:
-        out.write(f"{call}\n")
-    out.close()
-    '''
+    p = Pool(15)
+    for x in tqdm(p.imap_unordered(uniqueSyscalls, os.listdir(directory)), total=len(os.listdir(directory))):
+        syscalls.update(x)
+    p.close()
+    pickle.dump(syscalls, open("sys-tmp/syscalls.p", "wb"))
 
 if __name__ == '__main__':
     main()
