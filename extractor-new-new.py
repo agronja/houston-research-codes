@@ -6,11 +6,8 @@ import pickle
 import networkx as nx
 from multiprocessing import Pool
 import gzip
-
-from networkx.algorithms.isolate import number_of_isolates
+import progressbar
 from tqdm import tqdm
-
-from networkx.classes import graph
 
 directed        = False
 weighted        = None
@@ -55,13 +52,17 @@ def featureExtractor(adjList):
         graphType = nx.DiGraph
     G = nx.parse_multiline_adjlist(iter(adjList), create_using=graphType)
     pr = nx.pagerank(G)
-    ec = nx.eigenvector_centrality(G, weight=weighted)
+    cc = nx.clustering(G, weight=weighted)
     ac = nx.average_clustering(G, weight=weighted)
 
     fv = []
     for call in syscalls: 
         fv.append(pr.get(call, 0))
-        fv.append(ec.get(call, 0))
+        fv.append(cc.get(call, 0))
+        try:
+            fv.append(G.degree[call])
+        except KeyError:
+            fv.append(0)
     
     fv.append(ac)
     return fv
@@ -69,12 +70,16 @@ def featureExtractor(adjList):
 def fileProcessor(filename, idx):
     
     global numFiles
+    print(f"Files processed: {numFiles:6}, Most recent file: {idx:6}")
     numFiles += 1
-    print(f"Files processed: {numFiles:6}, Most recent file: {idx:6}", end="\r")
     
-    family = familyClass(filename)
+    family = filename.split('_')[0]
     adjList = pickle.load(open(directory + filename, "rb"))
+    
     fv = featureExtractor(adjList)
+    
+    #if numFiles == (len(os.listdir(directory))//cores):
+    #    print("A thread has finished.")
 
     return (family, fv)
 
@@ -138,11 +143,19 @@ def main():
     p = Pool(cores)
     '''
     theResults = []
+    
+    widgets = ['Files Processed: ', progressbar.Percentage(), ' [', progressbar.Timer(), '] ', progressbar.Bar(left='[', right=']'), ' (', progressbar.ETA(), ') ',]
+    bar = progressbar.ProgressBar(widgets=widgets).start()
+    for file in bar(os.listdir(directory)):
+        theResults.append(fileProcessor(file))
+    bar.finish()
+    
     for x in tqdm(p.imap_unordered(fileProcessor, os.listdir(directory)), total=len(os.listdir(directory))):
         theResults.append(x)
     '''
     theResults = p.starmap(fileProcessor, d)
-    p.close()
+    
+    # p.close()
     fp = "pickled-final-files/" + typePrint + "-" + dPrint + "-" + wPrint + ".p"
     pickle.dump(theResults, open(fp, "wb"))
     print(f"Results pickled to {fp}")
